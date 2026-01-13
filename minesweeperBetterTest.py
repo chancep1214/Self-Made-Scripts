@@ -1,7 +1,7 @@
 import random
 import tkinter as tk
 import math
-
+import time
 
 '''
 Purpose: Tracks the click event pertaining to Left-Click
@@ -29,10 +29,35 @@ def rectangleClick(event):
                 # Stores the number of bombs in tiles vicinity
                 bombCounter = getNumBombVicinity(center)
                 changeConnectingRectangles(rectID, bombCounter)
-    print(correctGuesses)
-    if correctGuesses == totalPossibleCorrectGuesses:
+    
+    if len(guessedRectangles) == totalPossibleCorrectGuesses:
         winner()
-            
+    
+'''
+Purpose: Allow for dynamic generation of bombs after first click.
+'''
+def firstClick(event):
+    global firstClickValue
+    # Coords of click
+    x, y = event.x, event.y
+    # Stores the id's of all rectangles near click. Index 0 always contains the one that was clicked.
+    nearestTiles = event.widget.find_closest(x, y)
+
+    if (nearestTiles):
+        rectID = nearestTiles[0]
+        center = getCenterOfRectangle(rectID)
+        bombCounter = 0
+        changeRectangle(rectID,center,bombCounter)
+
+        # Get IDs of rectangles in vicinity to prevent bombs from spawning there
+        idRectangleVicinityList = getRectangleIDInVicinity(rectID)
+        idRectangleVicinityList.append(rectID)
+        generateBombs(idRectangleVicinityList)
+
+        # Changes the rest of the rectangles near it
+        changeConnectingRectangles(rectID, bombCounter)
+        # Allows program to proceed
+        firstClickValue.set(value=1)            
 
 '''
 Purpose: Tracks the flag event pertaining to Right-Click
@@ -40,6 +65,7 @@ Param:
 event - Contains the data corresponding to the recent event
 '''
 def rectangleFlag(event):
+    
     # Coords of click
     x, y = event.x, event.y
 
@@ -54,6 +80,7 @@ def rectangleFlag(event):
                 addFlagToRectangle(rectID)
             else:
                 removeFlagToRectangle(rectID)
+
             
 '''
 Purpose: Updates the rectangle to appear as flagged (Yellow)
@@ -125,9 +152,7 @@ def changeRectangle(rectID, center, bombCounter):
     canvas.dtag(rectID, "Not Guessed")
     canvas.itemconfig(rectID, fill="grey")
     canvas.create_text(center[0], center[1], text=str(bombCounter), fill="white", font=("Arial", 30))
-    # Increment the number of correct guesses that have been made
-    global correctGuesses
-    correctGuesses += 1
+    
 '''
 Purpose: Describes what happens when a bomb is clicked and this function is ran.
 Params:
@@ -136,7 +161,7 @@ rectID - The ID assigned to the given rectangle that was chosen
 def clickedBomb(rectID):
     canvas.itemconfig(rectID, fill="red")
     endText = "Oh no, you clicked a bomb. Game Over!"
-    canvas.create_text(690,360, text=endText, font=("Arial", 40))
+    canvas.create_text(960,540, text=endText, font=("Arial", 40))
     # Prevents using buttons after loss
     canvas.unbind("<Button-1>")
     canvas.unbind("<Button-3>")
@@ -149,8 +174,10 @@ rectID - The ID assigned to the given rectangle that was chosen
 def winner():
     for rectID in range(1,rows*columns + 1):
         canvas.itemconfig(rectID, fill="green")
+    for location in bombLocations:
+        canvas.itemconfig(location, fill="red")
     endText = "You have won the game!"
-    canvas.create_text(690,360, text=endText, font=("Arial", 40))
+    canvas.create_text(900,500, text=endText, font=("Arial", 40), fill="Yellow")
     # Prevents using buttons after loss
     canvas.unbind("<Button-1>")
     canvas.unbind("<Button-3>")
@@ -239,9 +266,7 @@ def getRectangleIDInVicinity(rectID):
     for i in idList:
         if i in guessedRectangles or i in bombLocations:
             idList.remove(i)
-        # else:
-        #     correctGuesses += 1
-        
+    
     return idList
 
 # Leverage Guessed tag on rectangles
@@ -250,7 +275,6 @@ def getRectangleIDInVicinity(rectID):
 # Check for Guessed tag, if rectangle doesn't have Guessed tag recursively call the function.
 # If bombCounter = 0 for a rectangle just display that square, don't recursively search.
 def changeConnectingRectangles(rectID, bombCounter):
-    global correctGuesses
     center = getCenterOfRectangle(rectID)
 
     # Check to see if the current rectangle has 0 bombs in vicinity or has been evaluated before
@@ -258,49 +282,53 @@ def changeConnectingRectangles(rectID, bombCounter):
         changeRectangle(rectID, center, bombCounter)
         guessedRectangles.append(rectID)
         connectingRectangleIDS = getRectangleIDInVicinity(rectID)
-        
 
         for adjacentRectID in connectingRectangleIDS:
             adjacentCenter = getCenterOfRectangle(adjacentRectID)
-
             bombCounter = getNumBombVicinity(adjacentCenter)
             changeConnectingRectangles(adjacentRectID, bombCounter)
     # Base Case - Rectangle has bombs in vicinity
-    elif bombCounter > 0:
+    elif rectID not in guessedRectangles and bombCounter > 0:
+        guessedRectangles.append(rectID)
         changeRectangle(rectID, center, bombCounter)
-    
 
+# Might not need param
+def generateBombs(idList):
+    global bombLocations
+
+    # Generates bomb locations
+    for i in range(bombCount):
+        location = random.randint(1, rows*columns)
+
+        while (location in bombLocations or location in idList):
+            location = random.randint(1, rows*columns)
+
+        bombLocations.append(location)
+
+
+
+        
 root = tk.Tk()
 root.title("Minesweeper")
-root.geometry("1280x720")
+root.geometry("1920x1080")
 
-canvas = tk.Canvas(root, width=1280, height=720, background="grey")
+canvas = tk.Canvas(root, width=1920, height=1080, background="grey")
 canvas.pack(fill="both", expand=True)
-
-# Creates a start button
-# startButton = tk.Button(canvas, text="Start?")
-# buttonID = canvas.create_window(10,10, anchor='nw', window=startButton)
-# canvas.tag_bind(buttonID, "<Button-1>", lambda x: True)
-# global startGame
-# startGame = False
 
 # Rectangle Coordinate Start
 # (top-left x, top-left y, bottom-right x, bottom-right y)
 topX, topY, botX, botY = 50, 50, 100, 100
 xOffset, yOffset = 50, 50
 
-rows = 15
-columns = 24
-bombCount = 60
+rows = 17
+columns = 30
+bombCount = 100
 
 coordsList = []
 centerCoordsList = []
 guessedRectangles = []
 
-# Stores the number of rectangles correctly guessed (or given)
-global correctGuesses
-correctGuesses = 0
-global totalPossibleCorrectGuesses
+# Stores the number of rectangles that can be guessed
 totalPossibleCorrectGuesses = (rows*columns) - bombCount
 
 # Outer for loop creates 12 rows while inner loop creates 24 columns of boxes
@@ -320,19 +348,27 @@ for i in range(rows):
     topX = 50; botX = 100
 
 # Creates empty list to store locations (rectangle id) of bombs
-bombLocations = []
-# Generates bomb locations
-for i in range(bombCount):
-    location = random.randint(1, rows*columns)
-    
-    while (location in bombLocations):
-        location = random.randint(1, rows*columns)
+bombLocations = [] 
 
-    bombLocations.append(location)
+spinbox = tk.Spinbox(canvas, from_=0, to=100)
+spinbox.pack(pady=10)
+
+def getValue():
+    value = int(spinbox.get())
+    print(f"Value {value}")
+
+button = tk.Button(canvas, text="Number of Bombs", command=getValue)
+button.pack(pady=5)
+
+# Works for the first click only and then resumes.
+firstClickValue = tk.IntVar()
+canvas.bind("<Button-1>",firstClick)
+root.wait_variable(firstClickValue)
+canvas.unbind("<Button-1>")
 
 # Test Bombs (SHOW BOMBS)
-for i in bombLocations:
-    canvas.itemconfig(i, fill="red")
+# for i in bombLocations:
+#     canvas.itemconfig(i, fill="red")
 
 # Bind Left Click to Choose
 canvas.bind("<Button-1>", rectangleClick)

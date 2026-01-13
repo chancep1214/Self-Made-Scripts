@@ -1,9 +1,7 @@
 import random
 import tkinter as tk
 import math
-import sys
 
-sys.setrecursionlimit(10000)
 
 '''
 Purpose: Tracks the click event pertaining to Left-Click
@@ -31,8 +29,11 @@ def rectangleClick(event):
                 # Stores the number of bombs in tiles vicinity
                 bombCounter = getNumBombVicinity(center)
                 changeConnectingRectangles(rectID, bombCounter)
-                # USING RECURSIVE FUNCTION
-                #changeRectangle(rectID, center, bombCounter)
+    print(correctGuesses)
+    if correctGuesses == totalPossibleCorrectGuesses:
+        winner()
+    return True
+            
 
 '''
 Purpose: Tracks the flag event pertaining to Right-Click
@@ -40,6 +41,7 @@ Param:
 event - Contains the data corresponding to the recent event
 '''
 def rectangleFlag(event):
+    global firstClick
     # Coords of click
     x, y = event.x, event.y
 
@@ -54,6 +56,8 @@ def rectangleFlag(event):
                 addFlagToRectangle(rectID)
             else:
                 removeFlagToRectangle(rectID)
+    firstClick = True
+    return firstClick
             
 '''
 Purpose: Updates the rectangle to appear as flagged (Yellow)
@@ -141,26 +145,108 @@ def clickedBomb(rectID):
     canvas.unbind("<Button-1>")
     canvas.unbind("<Button-3>")
 
+    '''
+Purpose: Describes what happens when a bomb is clicked and this function is ran.
+Params:
+rectID - The ID assigned to the given rectangle that was chosen
+'''
+def winner():
+    for rectID in range(1,rows*columns + 1):
+        canvas.itemconfig(rectID, fill="green")
+    endText = "You have won the game!"
+    canvas.create_text(690,360, text=endText, font=("Arial", 40))
+    # Prevents using buttons after loss
+    canvas.unbind("<Button-1>")
+    canvas.unbind("<Button-3>")
+
 '''
 Purpose: Returns a list containing the IDs of the rectangles in a 3x3 vicinity to a rectangle
 Param:
-currentCenter - center of current rectangle
+rectID - The ID assigned to the given rectangle that was chosen
 '''
-def getRectangleIDInVicinity(currentCenter):
+def getRectangleIDInVicinity(rectID):
     # Stores IDs of connecting rectangles
-    connectingRectangleID = []
-    # Loops across all IDs on the board
-    for rectID in range(1,(rows*columns)+1):
-        # Gets center of an adjacent rectangle
-        adjacentRectCenter = getCenterOfRectangle(rectID)
-        # Calculates the distance between current rectangle center and 'adjacent' rectangle center
-        distance = math.dist(currentCenter, adjacentRectCenter)
-        # Checks if the 'adjacent' rectangle is truly adjacent to the current rectangle
-        # Makes sure we don't classify current rectangle as adjacent
-        if ( (distance <= xOffset*math.sqrt(2)) and (distance != 0) ):
-            # Adds the adjacent rectangle ID to list of connecting rectangles
-            connectingRectangleID.append(rectID)
-    return connectingRectangleID
+    idList = []
+   
+    # Accounts for all rectangles one block in from the outside
+    if (rectID > columns and (rectID <= rows*columns - columns)
+        and rectID % columns != 1 and rectID % columns != 0):
+        # Gets IDs of all blocks around chosen rectangle
+        topLeft, topMiddle, topRight = (rectID - columns) - 1, (rectID - columns), (rectID - columns) + 1
+        middleLeft, middleRight = rectID - 1, rectID + 1
+        bottomLeft, bottomMiddle, bottomRight = (rectID + columns) - 1, (rectID + columns), (rectID + columns) + 1
+
+        idList.append(topLeft); idList.append(topMiddle); idList.append(topRight)
+        idList.append(middleLeft); idList.append(middleRight)
+        idList.append(bottomLeft); idList.append(bottomMiddle); idList.append(bottomRight)
+    # Left side rectangles not including corners
+    elif (rectID != 1 and rectID % columns == 1 and (rectID != rows*columns + 1 - columns) ):
+        topMiddle, topRight = (rectID - columns), (rectID - columns) + 1
+        middleRight = rectID + 1
+        bottomMiddle, bottomRight = (rectID + columns), (rectID + columns) + 1
+
+        idList.append(topMiddle); idList.append(topRight)
+        idList.append(middleRight)
+        idList.append(bottomMiddle); idList.append(bottomRight)
+    # Top side rectangles not including corners
+    elif (rectID > 1 and rectID < columns):
+        middleLeft, middleRight = rectID - 1, rectID + 1
+        bottomLeft, bottomMiddle, bottomRight = (rectID + columns) - 1, (rectID + columns), (rectID + columns) + 1
+
+        idList.append(middleLeft); idList.append(middleRight)
+        idList.append(bottomLeft); idList.append(bottomMiddle); idList.append(bottomRight)
+    # Right side rectangles not including corners
+    elif (rectID % columns == 0 and rectID != columns and (rectID != rows*columns) ):
+        topLeft, topMiddle = (rectID - columns) - 1, (rectID - columns)
+        middleLeft = rectID - 1
+        bottomLeft, bottomMiddle = (rectID + columns) - 1, (rectID + columns)
+
+        idList.append(topLeft); idList.append(topMiddle)
+        idList.append(middleLeft)
+        idList.append(bottomLeft); idList.append(bottomMiddle)
+    # Bottom side rectangles not including corners
+    elif ( (rectID > rows * columns + 1 - columns) and (rectID < rows * columns) ):
+        topLeft, topMiddle, topRight = (rectID - columns) - 1, (rectID - columns), (rectID - columns) + 1
+        middleLeft, middleRight = rectID - 1, rectID + 1
+
+        idList.append(topLeft); idList.append(topMiddle); idList.append(topRight)
+        idList.append(middleLeft); idList.append(middleRight)
+    # Top left corner
+    elif rectID == 1:
+        middleRight = rectID + 1
+        bottomMiddle, bottomRight = (rectID + columns), (rectID + columns) + 1
+
+        idList.append(middleRight)
+        idList.append(bottomMiddle); idList.append(bottomRight)
+    # Top right corner
+    elif rectID == columns:
+        middleLeft = rectID - 1
+        bottomLeft, bottomMiddle = (rectID + columns) - 1, (rectID + columns)
+
+        idList.append(middleLeft)
+        idList.append(bottomLeft); idList.append(bottomMiddle)
+    # Bottom left corner
+    elif rectID == (rows*columns + 1) - columns:
+        topMiddle, topRight = (rectID - columns), (rectID - columns) + 1
+        middleRight = rectID + 1
+
+        idList.append(topMiddle); idList.append(topRight)
+        idList.append(middleRight)
+    # Bottom right corner
+    elif rectID == rows*columns:
+        topLeft, topMiddle = (rectID - columns)-1, (rectID - columns)
+        middleLeft = rectID - 1
+
+        idList.append(topLeft); idList.append(topMiddle)
+        idList.append(middleLeft)    
+
+    for i in idList:
+        if i in guessedRectangles or i in bombLocations:
+            idList.remove(i)
+        # else:
+        #     correctGuesses += 1
+        
+    return idList
 
 # Leverage Guessed tag on rectangles
 # For each rectangle that has bombCounter = 0, run distance formula to get IDs of Rectangles
@@ -168,23 +254,25 @@ def getRectangleIDInVicinity(currentCenter):
 # Check for Guessed tag, if rectangle doesn't have Guessed tag recursively call the function.
 # If bombCounter = 0 for a rectangle just display that square, don't recursively search.
 def changeConnectingRectangles(rectID, bombCounter):
-    print("TEST1")
+    global correctGuesses
     center = getCenterOfRectangle(rectID)
-    #unguessedIDS.remove(rectID)
-    if bombCounter == 0:
-        print("TEST2")
+
+    # Check to see if the current rectangle has 0 bombs in vicinity or has been evaluated before
+    if rectID not in guessedRectangles and bombCounter == 0:
         changeRectangle(rectID, center, bombCounter)
-        connectingRectangleIDS = getRectangleIDInVicinity(center)
-        print(f"TEST: {connectingRectangleIDS}")
+        guessedRectangles.append(rectID)
+        connectingRectangleIDS = getRectangleIDInVicinity(rectID)
+        
+
         for adjacentRectID in connectingRectangleIDS:
-            print("TEST3")
             adjacentCenter = getCenterOfRectangle(adjacentRectID)
-            # MIGHT NEED TO CHANGE VAR NAME
+
             bombCounter = getNumBombVicinity(adjacentCenter)
             changeConnectingRectangles(adjacentRectID, bombCounter)
-            print("TEST")
-    else:
+    # Base Case - Rectangle has bombs in vicinity
+    elif bombCounter > 0:
         changeRectangle(rectID, center, bombCounter)
+    
 
 root = tk.Tk()
 root.title("Minesweeper")
@@ -205,17 +293,18 @@ canvas.pack(fill="both", expand=True)
 topX, topY, botX, botY = 50, 50, 100, 100
 xOffset, yOffset = 50, 50
 
-rows = 12
+rows = 15
 columns = 24
-bombCount = 25
+bombCount = 60
 
 coordsList = []
 centerCoordsList = []
-
+guessedRectangles = []
 
 # Stores the number of rectangles correctly guessed (or given)
 global correctGuesses
 correctGuesses = 0
+global totalPossibleCorrectGuesses
 totalPossibleCorrectGuesses = (rows*columns) - bombCount
 
 # Outer for loop creates 12 rows while inner loop creates 24 columns of boxes
@@ -234,22 +323,28 @@ for i in range(rows):
     # Resets x coordinates back to normal 
     topX = 50; botX = 100
 
+global firstClick
+firstClick = False
+canvas.bind("<Button-1>", rectangleClick)
+root.mainloop()
 # Creates empty list to store locations (rectangle id) of bombs
 bombLocations = []
+while (not firstClick):
 # Generates bomb locations
-for i in range(bombCount):
-    location = random.randint(1, rows*columns)
-    
-    while (location in bombLocations):
+    for i in range(bombCount):
         location = random.randint(1, rows*columns)
 
-    bombLocations.append(location)
+        while (location in bombLocations):
+            location = random.randint(1, rows*columns)
 
+        bombLocations.append(location)
+
+# Test Bombs (SHOW BOMBS)
 for i in bombLocations:
     canvas.itemconfig(i, fill="red")
 
 # Bind Left Click to Choose
-canvas.bind("<Button-1>", rectangleClick)
+#canvas.bind("<Button-1>", rectangleClick)
 # Bind Right Click to Flag
 canvas.bind("<Button-3>", rectangleFlag)
 
